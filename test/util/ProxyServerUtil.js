@@ -11,8 +11,8 @@ const DEFAULT_OPTIONS = {
   webInterface: {
     enable: true,
     webPort: 8002,  // optional, port for web interface
-    wsPort: 8003,  // optional, internal port for web socket
   },
+  wsIntercept: true,
   throttle: 10000,    // optional, speed limit in kb/s
   forceProxyHttps: true, // intercept https as well
   dangerouslyIgnoreUnauthorized: true,
@@ -23,10 +23,16 @@ const DEFAULT_OPTIONS = {
 *
 * @return An instance of proxy, could be closed by calling `instance.close()`
 */
-function defaultProxyServer() {
+function defaultProxyServer(webinterfaceEnable = true) {
   const AnyProxy = util.freshRequire('../proxy.js');
 
   const options = util.merge({}, DEFAULT_OPTIONS);
+  util.merge(options, {
+    webInterface: {
+      enable: webinterfaceEnable,
+      webPort: 8002
+    }
+  })
   const instance = new AnyProxy.ProxyServer(options);
   instance.on('error', e => {
     console.log('server instance error', e);

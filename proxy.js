@@ -11,6 +11,7 @@ const http = require('http'),
   events = require('events'),
   co = require('co'),
   WebInterface = require('./lib/webInterface'),
+  wsServerMgr = require('./lib/wsServerMgr'),
   ThrottleGroup = require('stream-throttle').ThrottleGroup;
 
 // const memwatch = require('memwatch-next');
@@ -60,6 +61,7 @@ class ProxyCore extends events.EventEmitter {
    * @param {boolean} [config.silent=false] - if keep the console silent
    * @param {boolean} [config.dangerouslyIgnoreUnauthorized=false] - if ignore unauthorized server response
    * @param {object} [config.recorder] - recorder to use
+   * @param {boolean} [config.wsIntercept] - whether intercept websocket
    *
    * @memberOf ProxyCore
    */
@@ -114,6 +116,8 @@ class ProxyCore extends events.EventEmitter {
     // init request handler
     const RequestHandler = util.freshRequire('./requestHandler');
     this.requestHandler = new RequestHandler({
+      wsIntercept: config.wsIntercept,
+      httpServerPort: config.port, // the http server port for http proxy
       forceProxyHttps: !!config.forceProxyHttps,
       dangerouslyIgnoreUnauthorized: !!config.dangerouslyIgnoreUnauthorized
     }, this.proxyRule, this.recorder);
@@ -185,6 +189,10 @@ class ProxyCore extends events.EventEmitter {
         },
 
         function (callback) {
+          wsServerMgr.getWsServer({
+            server: self.httpProxyServer,
+            connHandler: self.requestHandler.wsHandler
+          });
           // remember all sockets, so we can destory them when call the method 'close';
           self.httpProxyServer.on('connection', (socket) => {
             self.handleExistConnections.call(self, socket);
@@ -302,7 +310,6 @@ class ProxyServer extends ProxyCore {
    * @param {object} [config.webInterface] - config of the web interface
    * @param {boolean} [config.webInterface.enable=false] - if web interface is enabled
    * @param {number} [config.webInterface.webPort=8002] - http port of the web interface
-   * @param {number} [config.webInterface.wsPort] - web socket port of the web interface
    */
   constructor(config) {
     // prepare a recorder
@@ -322,23 +329,17 @@ class ProxyServer extends ProxyCore {
     // start web interface if neeeded
     if (this.proxyWebinterfaceConfig && this.proxyWebinterfaceConfig.enable) {
       this.webServerInstance = new WebInterface(this.proxyWebinterfaceConfig, this.recorder);
-    }
-
-    new Promise((resolve) => {
       // start web server
-      if (this.webServerInstance) {
-        resolve(this.webServerInstance.start());
-      } else {
-        resolve(null);
-      }
-    })
-    .then(() => {
-      // start proxy core
-      super.start()
-    })
-    .catch((e) => {
-      this.emit('error', e);
-    });
+      this.webServerInstance.start().then(() => {
+        // start proxy core
+        super.start();
+      })
+      .catch((e) => {
+        this.emit('error', e);
+      });
+    } else {
+      super.start();
+    }
   }
 
   close() {

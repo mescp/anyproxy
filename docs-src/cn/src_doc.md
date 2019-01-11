@@ -79,11 +79,11 @@ const options = {
   rule: require('myRuleModule'),
   webInterface: {
     enable: true,
-    webPort: 8002,
-    wsPort: 8003,
+    webPort: 8002
   },
   throttle: 10000,
   forceProxyHttps: false,
+  wsIntercept: false, // 不开启websocket代理
   silent: false
 };
 const proxyServer = new AnyProxy.ProxyServer(options);
@@ -110,6 +110,7 @@ proxyServer.close();
     * `forceProxyHttps` {boolean} 是否强制拦截所有的https，忽略规则模块的返回，默认`false`
     * `silent` {boolean} 是否屏蔽所有console输出，默认`false`
     * `dangerouslyIgnoreUnauthorized` {boolean} 是否忽略请求中的证书错误，默认`false`
+    * `wsIntercept` {boolean} 是否开启websocket代理，默认`false`
     * `webInterface` {object} web版界面配置
       * `enable` {boolean} 是否启用web版界面，默认`false`
       * `webPort` {number} web版界面端口号，默认`8002`
@@ -198,6 +199,14 @@ anyproxy --intercept #启动AnyProxy，并解析所有https请求
 ```
 
 * [附录：如何信任CA证书](#证书配置)
+
+# 代理WebSocket
+
+```bash
+anyproxy --ws-intercept
+```
+
+> 当启用`HTTPS`代理时，`wss`也会被代理，但是不会被AnyProxy记录。需要开启`--ws-intercept`后才会从界面上看到相应内容。
 
 # rule模块
 
@@ -610,6 +619,14 @@ module.exports = {
 * 除了上述证书安装过程，还需要在 *设置->通用->关于本机->证书信任设置* 中把AnyProxy证书的开关打开，否则safari将报错。
 
 <img src="https://zos.alipayobjects.com/rmsportal/hVWkXHrzHmOKOtCKGUWx.png" width="500" />
+
+### 安卓系统信任CA证书
+首先和iOS类似，需要先扫描证书的二维码进行下载。然后不同的安卓系统安装证书的方式可能有所不同，但是安装的步骤是类似的，我们列举了几种类型。
+
+* 下载后的证书可以直接单击打开并安装，这种方式是最简单的，直接安装即可
+* 证书下载到指定目录后，需要从其他入口进行安装，包括：
+  * 设置 -> 安全性与位置信息 -> 加密与凭据 -> 从存储设备安装。找到你下载的证书文件，进行安装
+  * 设置 -> 安全 -> 从SD卡安装证书。找到你下载的证书文件，进行安装
 
 ### 配置iOS/Android系统代理
 
